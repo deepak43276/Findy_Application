@@ -13,10 +13,16 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
+
+    @Autowired
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -25,14 +31,14 @@ public class SecurityConfig {
             .csrf().disable()
             .authorizeHttpRequests(authz -> authz
                 .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers("/api/jobs/**").permitAll()
-                .requestMatchers("/api/candidates/**").permitAll()
-                .requestMatchers("/api/users/**").permitAll()
+                .requestMatchers("/api/users/register").permitAll()
+                .requestMatchers("/api/jobs", "/api/jobs/**").permitAll()
                 .anyRequest().authenticated()
             )
             .sessionManagement()
             .sessionCreationPolicy(SessionCreationPolicy.STATELESS);
-        
+
+        http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Search, MapPin, Briefcase, Users, TrendingUp, Star, ArrowRight } from "lucide-react";
+import { motion } from "framer-motion";
 
 export default function Index() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -51,30 +52,69 @@ export default function Index() {
     { label: "User Rating", value: "4.8/5", icon: Star }
   ];
 
+  // Animation variants
+  const pageVariants = {
+    hidden: { opacity: 0, y: 32 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: "easeOut" } }
+  };
+  const heroVariants = {
+    hidden: { opacity: 0, y: 40 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: "easeOut" } }
+  };
+  const cardStagger = {
+    visible: {
+      transition: {
+        staggerChildren: 0.15
+      }
+    }
+  };
+  const cardVariants = {
+    hidden: { opacity: 0, y: 24 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } }
+  };
+
   return (
-    <div className="min-h-screen bg-background">
+    <motion.div
+      initial="hidden"
+      animate="visible"
+      variants={pageVariants}
+      className="min-h-screen bg-background"
+    >
       <Navigation />
-      
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-primary/10 via-primary/5 to-background">
+      <motion.section
+        className="relative overflow-hidden bg-gradient-to-br from-primary/10 via-primary/5 to-background"
+        initial="hidden"
+        animate="visible"
+        variants={heroVariants}
+      >
         <div className="container mx-auto px-4 py-20">
-          <div className="text-center max-w-4xl mx-auto">
+          <motion.div
+            className="text-center max-w-4xl mx-auto"
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
+          >
             <h1 className="text-5xl md:text-6xl font-bold mb-6 gradient-text">
               Find Your Dream Job
             </h1>
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
               Connect with top companies and discover opportunities that match your skills and aspirations
             </p>
-            
             {/* Search Bar */}
-            <div className="bg-background/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-border max-w-3xl mx-auto">
+            <motion.div
+              className="bg-background/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-border max-w-3xl mx-auto"
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.4, ease: "easeOut" }}
+            >
               <div className="flex flex-col md:flex-row gap-4">
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder="Job title, keywords, or company"
                     value={searchQuery}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10"
                   />
                 </div>
@@ -83,7 +123,7 @@ export default function Index() {
                   <Input
                     placeholder="Location"
                     value={location}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLocation(e.target.value)}
+                    onChange={(e) => setLocation(e.target.value)}
                     className="pl-10"
                   />
                 </div>
@@ -91,94 +131,87 @@ export default function Index() {
                   Search Jobs
                 </Button>
               </div>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="py-16 bg-muted/30">
+      </motion.section>
+      {/* Featured Jobs Section */}
+      <section className="py-16 bg-gradient-to-r from-primary/10 to-primary/5">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((stat) => (
-              <div key={stat.label} className="text-center">
-                <div className="flex items-center justify-center w-12 h-12 bg-primary/10 rounded-lg mx-auto mb-4">
-                  <stat.icon className="w-6 h-6 text-primary" />
-                </div>
-                <div className="text-3xl font-bold text-foreground mb-2">{stat.value}</div>
-                <div className="text-muted-foreground">{stat.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Featured Jobs */}
-      <section className="py-16">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h2 className="text-3xl font-bold mb-2">Featured Jobs</h2>
-              <p className="text-muted-foreground">Hand-picked opportunities from top companies</p>
-            </div>
-            <Link href="/find-jobs">
-              <Button variant="outline" className="flex items-center gap-2">
-                View All Jobs
-                <ArrowRight className="w-4 h-4" />
-              </Button>
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {featuredJobs.map((job) => (
-              <Card key={job.id} className="hover:shadow-lg transition-shadow cursor-pointer">
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <h3 className="text-xl font-semibold mb-2">{job.title}</h3>
-                      <div className="flex items-center text-muted-foreground mb-2">
-                        <Briefcase className="w-4 h-4 mr-2" />
-                        <span className="mr-4">{job.company}</span>
-                        <MapPin className="w-4 h-4 mr-2" />
-                        <span>{job.location}</span>
-                      </div>
-                      <div className="flex items-center text-muted-foreground mb-3">
-                        <span className="mr-4">{job.type}</span>
-                        <span className="font-medium text-primary">{job.salary}</span>
-                      </div>
+          <h2 className="text-3xl font-bold mb-8 text-center gradient-text">Featured Jobs</h2>
+          <motion.div
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+            variants={cardStagger}
+            initial="hidden"
+            animate="visible"
+          >
+            {featuredJobs.map((job, idx) => (
+              <motion.div key={job.id} variants={cardVariants}>
+                <Card className="hover:shadow-xl transition-shadow duration-300">
+                  <CardHeader>
+                    <CardTitle>{job.title}</CardTitle>
+                    <CardDescription>{job.company} &mdash; {job.location}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {job.skills.map(skill => (
+                        <Badge key={skill}>{skill}</Badge>
+                      ))}
                     </div>
-                    {job.featured && (
-                      <Badge variant="secondary" className="bg-yellow-100 text-yellow-700">
-                        Featured
-                      </Badge>
-                    )}
-                  </div>
-
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {job.skills.map((skill) => (
-                      <Badge key={skill} variant="outline">
-                        {skill}
-                      </Badge>
-                    ))}
-                  </div>
-
-                  <Button className="w-full bg-primary hover:bg-primary/90">
-                    Apply Now
-                  </Button>
-                </CardContent>
-              </Card>
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                      <span>{job.type}</span>
+                      <span>{job.salary}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
       </section>
-
-      {/* CTA Section */}
+      {/* Stats Section */}
+      <section className="py-12">
+        <div className="container mx-auto px-4">
+          <motion.div
+            className="grid grid-cols-2 md:grid-cols-4 gap-8"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, amount: 0.2 }}
+            variants={cardStagger}
+          >
+            {stats.map((stat, idx) => (
+              <motion.div key={stat.label} variants={cardVariants}>
+                <div className="flex flex-col items-center justify-center p-6 bg-background rounded-xl shadow-md">
+                  <stat.icon className="w-8 h-8 text-primary mb-2" />
+                  <div className="text-2xl font-bold mb-1">{stat.value}</div>
+                  <div className="text-muted-foreground text-sm">{stat.label}</div>
+                </div>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+      {/* Call to Action */}
       <section className="py-16 bg-gradient-to-r from-primary/10 to-primary/5">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-4">Ready to Post a Job?</h2>
-          <p className="text-muted-foreground mb-8 max-w-2xl mx-auto">
+          <motion.h2
+            className="text-3xl font-bold mb-4"
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+          >
+            Ready to Post a Job?
+          </motion.h2>
+          <motion.p
+            className="text-muted-foreground mb-8 max-w-2xl mx-auto"
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
+          >
             Find the perfect candidate for your team. Post your job listing and connect with talented professionals.
-          </p>
+          </motion.p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/post-job">
               <Button className="bg-primary hover:bg-primary/90 px-8">
@@ -193,6 +226,6 @@ export default function Index() {
           </div>
         </div>
       </section>
-    </div>
+    </motion.div>
   );
 } 

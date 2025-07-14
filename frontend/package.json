@@ -1,5 +1,5 @@
 {
-  "name": "findy-frontend",
+  "name": "jobhook-frontend",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -22,6 +22,8 @@
     "@tanstack/react-query": "^5.0.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
+    "framer-motion": "^12.23.5",
+    "jwt-decode": "^4.0.0",
     "lucide-react": "^0.294.0",
     "next": "14.0.0",
     "react": "^18",

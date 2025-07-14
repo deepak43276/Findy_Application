@@ -1,8 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "./button";
 import { Menu, X, Search, User, Briefcase } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/router";
+import { useToast } from "@/hooks/use-toast";
+import { Portal } from "@/components/Portal";
 
 interface NavigationProps {
   className?: string;
@@ -10,6 +15,17 @@ interface NavigationProps {
 
 export function Navigation({ className }: NavigationProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const { user, logout } = useAuth();
+  const router = useRouter();
+  const { toast } = useToast();
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted) return null;
 
   const navigationItems = [
     { label: "Find Jobs", href: "/find-jobs", icon: Search },
@@ -25,10 +41,8 @@ export function Navigation({ className }: NavigationProps) {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <Briefcase className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="text-xl font-bold gradient-text">JobHook</span>
+           
+            <span className="text-xl font-bold gradient-text">Findy</span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -45,13 +59,58 @@ export function Navigation({ className }: NavigationProps) {
             ))}
           </div>
 
-          {/* Login Button */}
-          <div className="hidden md:flex">
-            <Link href="/login">
-              <Button variant="outline" className="border-primary text-primary hover:bg-primary hover:text-primary-foreground">
-                Login
-              </Button>
-            </Link>
+          {/* Login Button or Profile */}
+          <div className="hidden md:flex items-center">
+            {user ? (
+              <div className="relative">
+                <button
+                  className="focus:outline-none"
+                  onClick={() => setProfileMenuOpen((open) => !open)}
+                >
+                  <Avatar>
+                    <AvatarImage src="/placeholder.svg" />
+                    <AvatarFallback>{user.email?.[0]?.toUpperCase() || "U"}</AvatarFallback>
+                  </Avatar>
+                </button>
+                {profileMenuOpen && (
+                  <Portal>
+                    <div
+                      className="fixed right-8 top-16 w-40 bg-white border rounded shadow-lg z-[99999]"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <button
+                        className="w-full text-left px-4 py-2 hover:bg-gray-100"
+                        onClick={e => {
+                          e.stopPropagation();
+                          setProfileMenuOpen(false);
+                          router.push("/profile");
+                        }}
+                      >
+                        Settings
+                      </button>
+                      <button
+                        className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600"
+                        onClick={e => {
+                          e.stopPropagation();
+                          logout();
+                          setProfileMenuOpen(false);
+                          toast({ title: "Logged out" });
+                          router.push("/login");
+                        }}
+                      >
+                        Logout
+                      </button>
+                    </div>
+                  </Portal>
+                )}
+              </div>
+            ) : (
+              <Link href="/login">
+                <Button variant="outline" className="border-primary text-primary hover:bg-primary hover:text-primary-foreground">
+                  Login / Register
+                </Button>
+              </Link>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -81,11 +140,36 @@ export function Navigation({ className }: NavigationProps) {
               </Link>
             ))}
             <div className="pt-2">
-              <Link href="/login">
-                <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary hover:text-primary-foreground">
-                  Login
-                </Button>
-              </Link>
+              {user ? (
+                <div className="flex flex-col gap-2">
+                  <button
+                    className="w-full text-left px-4 py-2 hover:bg-gray-100"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      router.push("/profile");
+                    }}
+                  >
+                    Settings
+                  </button>
+                  <button
+                    className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600"
+                    onClick={() => {
+                      logout();
+                      setIsMenuOpen(false);
+                      toast({ title: "Logged out" });
+                      router.push("/login");
+                    }}
+                  >
+                    Logout
+                  </button>
+                </div>
+              ) : (
+                <Link href="/login">
+                  <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary hover:text-primary-foreground">
+                    Login
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         )}

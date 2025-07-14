@@ -53,6 +53,9 @@ public class Job {
     private LocalDateTime applicationDeadline;
     
     private boolean acceptApplications = true;
+
+    @Column(name = "experience_level")
+    private String experienceLevel;
     
     // Constructors
     public Job() {}
@@ -200,5 +203,13 @@ public class Job {
     
     public void setAcceptApplications(boolean acceptApplications) {
         this.acceptApplications = acceptApplications;
+    }
+
+    public String getExperienceLevel() {
+        return experienceLevel;
+    }
+
+    public void setExperienceLevel(String experienceLevel) {
+        this.experienceLevel = experienceLevel;
     }
 } 

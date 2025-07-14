@@ -26,5 +26,5 @@ jwt:
 
 logging:
   level:
-    com.example.findy: DEBUG
+    com.example.jobhook: DEBUG
     org.springframework.security: DEBUG 

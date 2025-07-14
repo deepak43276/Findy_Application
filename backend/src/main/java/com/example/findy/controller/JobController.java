@@ -21,11 +21,12 @@ public class JobController {
     public ResponseEntity<List<Job>> getJobs(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String location,
-            @RequestParam(required = false) String type) {
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) String experienceLevel) {
         
         List<Job> jobs;
-        if (search != null || location != null || type != null) {
-            jobs = jobRepository.findBySearchAndLocation(search, location, type);
+        if (search != null || location != null || type != null || experienceLevel != null) {
+            jobs = jobRepository.findBySearchAndLocationAndExperience(search, location, type, experienceLevel);
         } else {
             jobs = jobRepository.findAll();
         }
