@@ -75,13 +75,33 @@ export default function FindJobs() {
 
   const jobTypes = ["Full-time", "Part-time", "Contract", "Remote"];
   const experienceLevels = ["Entry Level", "Mid Level", "Senior Level", "Executive"];
-  const salaryRanges = ["$0 - $50k", "$50k - $100k", "$100k - $150k", "$150k+"];
+  const salaryRanges = ["0 LPA - 4 LPA", "4 LPA - 8 LPA", "8 LPA - 12 LPA", "12 LPA+"];
+
+  // Helper functions for salary range parsing
+  function parseSalary(salaryStr: string): [number|null, number|null] {
+    // Accept both LPA and L/l notation
+    const match = salaryStr.match(/(\d+)\s*[lL][pP][aA]?\s*-\s*(\d+)\s*[lL][pP][aA]?/);
+    if (!match) return [null, null];
+    return [parseInt(match[1], 10) * 100000, parseInt(match[2], 10) * 100000];
+  }
+  function parseFilterRange(rangeStr: string): [number|null, number|null] {
+    const filterMatch = rangeStr.match(/(\d+)\s*[lL][pP][aA]?\s*-\s*(\d+)\s*[lL][pP][aA]?/);
+    if (!filterMatch) return [null, null];
+    return [parseInt(filterMatch[1], 10) * 100000, parseInt(filterMatch[2], 10) * 100000];
+  }
 
   // Only apply salaryRange filter on frontend; experienceLevel is handled by backend
   const filteredJobs = jobListings.filter((job) => {
     let matches = true;
-    if (salaryRange) {
-      matches = matches && !!(job.salary && job.salary.includes(salaryRange.replace(/\$/g, '')));
+    if (salaryRange && job.salary) {
+      const [jobMin, jobMax] = parseSalary(job.salary);
+      const [filterMin, filterMax] = parseFilterRange(salaryRange);
+      if (jobMin === null || jobMax === null || filterMin === null || filterMax === null) {
+        matches = false;
+      } else {
+        // Check for overlap between job and filter range
+        matches = matches && (jobMax >= filterMin && jobMin <= filterMax);
+      }
     }
     return matches;
   });
@@ -226,7 +246,7 @@ export default function FindJobs() {
                             </div>
                             <div className="flex items-center text-muted-foreground mb-3">
                               <span className="mr-4">{job.type}</span>
-                              <span className="font-medium text-primary">{job.salary}</span>
+                              <span className="font-medium text-primary">{formatSalaryLPA(job.salary)}</span>
                             </div>
                           </div>
                           <Button variant="ghost" size="sm">
@@ -262,4 +282,16 @@ export default function FindJobs() {
       </div>
     </motion.div>
   );
+}
+
+function formatSalaryLPA(salary: string): string {
+  const match = salary.match(/(\d+)[kK]? *- *(\d+)[kK]?/);
+  if (match) {
+    const min = parseInt(match[1], 10);
+    const max = parseInt(match[2], 10);
+    // Convert k to LPA (1L = 100k)
+    return `${min / 100} LPA - ${max / 100} LPA`;
+  }
+  // If already in LPA format or not matching, return as is
+  return salary;
 } 
