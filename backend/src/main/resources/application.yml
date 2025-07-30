@@ -4,6 +4,7 @@ spring:
     username: postgres
     password: deepak@2004
     driver-class-name: org.postgresql.Driver
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -12,6 +13,7 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+
   security:
     user:
       name: admin
@@ -19,6 +21,10 @@ spring:
 
 server:
   port: 8081
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: always
 
 jwt:
   secret: your-secret-key-here-make-it-long-and-secure
@@ -26,5 +32,9 @@ jwt:
 
 logging:
   level:
-    com.example.jobhook: DEBUG
-    org.springframework.security: DEBUG 
+    com.example.findy: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.http.converter.json: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
