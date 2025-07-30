@@ -33,6 +33,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/users/register").permitAll()
                 .requestMatchers("/api/jobs", "/api/jobs/**").permitAll()
+                .requestMatchers("/api/candidates", "/api/candidates/**").permitAll()
                 .anyRequest().authenticated()
             )
             .sessionManagement()
