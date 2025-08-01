@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect } from "react";
 import { Navigation } from "@/components/ui/navigation";
 import { Button } from "@/components/ui/button";
@@ -6,8 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, MapPin, Briefcase, Clock, Building, Heart } from "lucide-react";
+import { Search, MapPin, Briefcase, Clock, Heart } from "lucide-react";
 import { motion, easeOut } from "framer-motion";
+import { useAuth } from "@/context/AuthContext";
 
 interface Job {
   id: number;
@@ -23,6 +26,12 @@ interface Job {
   experienceLevel?: string;
 }
 
+interface SavedJob {
+  id: number;
+  userId: number;
+  jobId: number;
+}
+
 export default function FindJobs() {
   const [searchQuery, setSearchQuery] = useState("");
   const [location, setLocation] = useState("");
@@ -33,32 +42,28 @@ export default function FindJobs() {
   const [experienceLevel, setExperienceLevel] = useState<string | undefined>(undefined);
   const [salaryRange, setSalaryRange] = useState<string | undefined>(undefined);
 
-  // Animation variants
+  const [savedJobs, setSavedJobs] = useState<number[]>([]);
+  const { user } = useAuth();
+  const userId = user?.id;
+
+  // Animations
   const pageVariants = {
     hidden: { opacity: 0, y: 32 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: easeOut } }
   };
-  const cardStagger = {
-    visible: {
-      transition: {
-        staggerChildren: 0.12
-      }
-    }
-  };
-  const cardVariants = {
-    hidden: { opacity: 0, y: 24 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: easeOut } }
-  };
+  const cardStagger = { visible: { transition: { staggerChildren: 0.12 } } };
+  const cardVariants = { hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: easeOut } } };
 
+  // Fetch jobs
   useEffect(() => {
     setLoading(true);
     setError(null);
-    // Build query params
     const params = new URLSearchParams();
     if (searchQuery) params.append("search", searchQuery);
     if (location) params.append("location", location);
     if (jobType && jobType !== "undefined") params.append("type", jobType);
     if (experienceLevel) params.append("experienceLevel", experienceLevel);
+
     const url = `http://localhost:8081/api/jobs${params.toString() ? `?${params.toString()}` : ""}`;
     fetch(url)
       .then(async (res) => {
@@ -73,24 +78,58 @@ export default function FindJobs() {
       });
   }, [searchQuery, location, jobType, experienceLevel]);
 
+  // Fetch saved jobs on mount
+  useEffect(() => {
+    if (!userId) return;
+    fetch(`http://localhost:8081/api/saved-jobs/${userId}`)
+      .then((res) => res.json())
+      .then((data: SavedJob[]) => {
+        setSavedJobs(data.map((d) => d.jobId));
+      })
+      .catch(() => {});
+  }, [userId]);
+
+  // Save/Unsave job
+  const toggleSaveJob = async (jobId: number) => {
+    if (!userId) return;
+
+    const isAlreadySaved = savedJobs.includes(jobId);
+
+    try {
+      if (isAlreadySaved) {
+        const res = await fetch(
+          `http://localhost:8081/api/saved-jobs?userId=${userId}&jobId=${jobId}`,
+          { method: "DELETE" }
+        );
+        if (res.ok) setSavedJobs((prev) => prev.filter((id) => id !== jobId));
+      } else {
+        const res = await fetch(
+          `http://localhost:8081/api/saved-jobs?userId=${userId}&jobId=${jobId}`,
+          { method: "POST" }
+        );
+        if (res.ok) setSavedJobs((prev) => [...prev, jobId]);
+      }
+    } catch (err) {
+      console.error("Failed to toggle saved job:", err);
+    }
+  };
+
   const jobTypes = ["Full-time", "Part-time", "Contract", "Remote"];
   const experienceLevels = ["Entry Level", "Mid Level", "Senior Level", "Executive"];
   const salaryRanges = ["0 LPA - 4 LPA", "4 LPA - 8 LPA", "8 LPA - 12 LPA", "12 LPA+"];
 
-  // Helper functions for salary range parsing
-  function parseSalary(salaryStr: string): [number|null, number|null] {
-    // Accept both LPA and L/l notation
+  function parseSalary(salaryStr: string): [number | null, number | null] {
     const match = salaryStr.match(/(\d+)\s*[lL][pP][aA]?\s*-\s*(\d+)\s*[lL][pP][aA]?/);
     if (!match) return [null, null];
     return [parseInt(match[1], 10) * 100000, parseInt(match[2], 10) * 100000];
   }
-  function parseFilterRange(rangeStr: string): [number|null, number|null] {
+
+  function parseFilterRange(rangeStr: string): [number | null, number | null] {
     const filterMatch = rangeStr.match(/(\d+)\s*[lL][pP][aA]?\s*-\s*(\d+)\s*[lL][pP][aA]?/);
     if (!filterMatch) return [null, null];
     return [parseInt(filterMatch[1], 10) * 100000, parseInt(filterMatch[2], 10) * 100000];
   }
 
-  // Only apply salaryRange filter on frontend; experienceLevel is handled by backend
   const filteredJobs = jobListings.filter((job) => {
     let matches = true;
     if (salaryRange && job.salary) {
@@ -99,20 +138,14 @@ export default function FindJobs() {
       if (jobMin === null || jobMax === null || filterMin === null || filterMax === null) {
         matches = false;
       } else {
-        // Check for overlap between job and filter range
-        matches = matches && (jobMax >= filterMin && jobMin <= filterMax);
+        matches = matches && jobMax >= filterMin && jobMin <= filterMax;
       }
     }
     return matches;
   });
 
   return (
-    <motion.div
-      initial="hidden"
-      animate="visible"
-      variants={pageVariants}
-      className="min-h-screen bg-background"
-    >
+    <motion.div initial="hidden" animate="visible" variants={pageVariants} className="min-h-screen bg-background">
       <Navigation />
       <div className="container mx-auto px-4 py-8">
         {/* Search Header */}
@@ -143,84 +176,68 @@ export default function FindJobs() {
                 className="pl-10"
               />
             </div>
-            <Button className="bg-primary hover:bg-primary/90 px-8">
-              Search Jobs
-            </Button>
+            <Button className="bg-primary hover:bg-primary/90 px-8">Search Jobs</Button>
           </div>
         </motion.div>
+
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Filters Sidebar */}
+          {/* Filters */}
           <div className="lg:col-span-1">
             <Card>
-              <CardHeader>
-                <CardTitle>Filters</CardTitle>
-              </CardHeader>
+              <CardHeader><CardTitle>Filters</CardTitle></CardHeader>
               <CardContent className="space-y-6">
                 <div>
                   <h3 className="font-medium mb-3">Job Type</h3>
                   <div className="space-y-2">
                     {jobTypes.map((type) => (
                       <div key={type} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={type}
-                          checked={jobType === type}
-                          onCheckedChange={(checked) => setJobType(checked ? type : undefined)}
-                        />
+                        <Checkbox id={type} checked={jobType === type} onCheckedChange={(checked) => setJobType(checked ? type : undefined)} />
                         <label htmlFor={type} className="text-sm">{type}</label>
                       </div>
                     ))}
                   </div>
                 </div>
+
                 <div>
                   <h3 className="font-medium mb-3">Experience Level</h3>
                   <Select value={experienceLevel} onValueChange={setExperienceLevel}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select level" />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Select level" /></SelectTrigger>
                     <SelectContent>
                       {experienceLevels.map((level) => (
-                        <SelectItem key={level} value={level}>
-                          {level}
-                        </SelectItem>
+                        <SelectItem key={level} value={level}>{level}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
+
                 <div>
                   <h3 className="font-medium mb-3">Salary Range</h3>
                   <Select value={salaryRange} onValueChange={setSalaryRange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select range" />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Select range" /></SelectTrigger>
                     <SelectContent>
                       {salaryRanges.map((range) => (
-                        <SelectItem key={range} value={range}>
-                          {range}
-                        </SelectItem>
+                        <SelectItem key={range} value={range}>{range}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                <Button variant="outline" className="w-full" onClick={() => {
-                  setSearchQuery("");
-                  setLocation("");
-                  setJobType(undefined);
-                  setExperienceLevel(undefined);
-                  setSalaryRange(undefined);
-                }}>
+
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    setSearchQuery(""); setLocation(""); setJobType(undefined); setExperienceLevel(undefined); setSalaryRange(undefined);
+                  }}
+                >
                   Clear Filters
                 </Button>
               </CardContent>
             </Card>
           </div>
+
           {/* Job Listings */}
           <div className="lg:col-span-3">
-            <motion.div
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
-              variants={cardStagger}
-              initial="hidden"
-              animate="visible"
-            >
+            <motion.div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" variants={cardStagger} initial="hidden" animate="visible">
               {loading ? (
                 <div className="col-span-full text-center py-12 text-muted-foreground">Loading jobs...</div>
               ) : error ? (
@@ -228,53 +245,58 @@ export default function FindJobs() {
               ) : filteredJobs.length === 0 ? (
                 <div className="col-span-full text-center py-12 text-muted-foreground">No jobs found.</div>
               ) : (
-                filteredJobs.map((job) => (
-                  <motion.div key={job.id} variants={cardVariants}>
-                    <Card className="hover:shadow-xl transition-shadow duration-300">
-                      <CardContent className="p-6">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex-1">
-                            <h3 className="text-xl font-semibold mb-2">{job.title}</h3>
-                            <div className="text-sm text-muted-foreground mb-1">
-                              <span className="font-semibold">Experience Level:</span> {job.experienceLevel ?? "N/A"}
+                filteredJobs.map((job) => {
+                  const isSaved = savedJobs.includes(job.id);
+                  return (
+                    <motion.div key={job.id} variants={cardVariants}>
+                      <Card className="hover:shadow-xl transition-shadow duration-300">
+                        <CardContent className="p-6">
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex-1">
+                              <h3 className="text-xl font-semibold mb-2">{job.title}</h3>
+                              <div className="text-sm text-muted-foreground mb-1">
+                                <span className="font-semibold">Experience Level:</span> {job.experienceLevel ?? "N/A"}
+                              </div>
+                              <div className="flex items-center text-muted-foreground mb-2">
+                                <Briefcase className="w-4 h-4 mr-2" />
+                                <span className="mr-4">{job.company}</span>
+                                <MapPin className="w-4 h-4 mr-2" />
+                                <span>{job.location}</span>
+                              </div>
+                              <div className="flex items-center text-muted-foreground mb-3">
+                                <span className="mr-4">{job.type}</span>
+                                <span className="font-medium text-primary">{formatSalaryLPA(job.salary)}</span>
+                              </div>
                             </div>
-                            <div className="flex items-center text-muted-foreground mb-2">
-                              <Briefcase className="w-4 h-4 mr-2" />
-                              <span className="mr-4">{job.company}</span>
-                              <MapPin className="w-4 h-4 mr-2" />
-                              <span>{job.location}</span>
+                            <Button variant="ghost" size="sm" onClick={() => toggleSaveJob(job.id)}>
+                              <Heart className={`w-4 h-4 ${isSaved ? "text-red-500 fill-red-500" : ""}`} />
+                            </Button>
+                          </div>
+
+                          <p className="text-muted-foreground mb-4">{job.description}</p>
+
+                          <div className="flex flex-wrap gap-2 mb-4">
+                            {job.skills.map((skill) => (
+                              <Badge key={skill} variant="secondary">{skill}</Badge>
+                            ))}
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center text-sm text-muted-foreground">
+                              <Clock className="w-4 h-4 mr-1" /> {job.posted}
                             </div>
-                            <div className="flex items-center text-muted-foreground mb-3">
-                              <span className="mr-4">{job.type}</span>
-                              <span className="font-medium text-primary">{formatSalaryLPA(job.salary)}</span>
+                            <div className="space-x-2">
+                              <Button variant={isSaved ? "default" : "outline"} onClick={() => toggleSaveJob(job.id)}>
+                                {isSaved ? "Saved" : "Save"}
+                              </Button>
+                              <Button className="bg-primary hover:bg-primary/90">Apply Now</Button>
                             </div>
                           </div>
-                          <Button variant="ghost" size="sm">
-                            <Heart className="w-4 h-4" />
-                          </Button>
-                        </div>
-                        <p className="text-muted-foreground mb-4">{job.description}</p>
-                        <div className="flex flex-wrap gap-2 mb-4">
-                          {job.skills.map((skill) => (
-                            <Badge key={skill} variant="secondary">
-                              {skill}
-                            </Badge>
-                          ))}
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center text-sm text-muted-foreground">
-                            <Clock className="w-4 h-4 mr-1" />
-                            {job.posted}
-                          </div>
-                          <div className="space-x-2">
-                            <Button variant="outline">Save</Button>
-                            <Button className="bg-primary hover:bg-primary/90">Apply Now</Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                ))
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  );
+                })
               )}
             </motion.div>
           </div>
@@ -289,9 +311,7 @@ function formatSalaryLPA(salary: string): string {
   if (match) {
     const min = parseInt(match[1], 10);
     const max = parseInt(match[2], 10);
-    // Convert k to LPA (1L = 100k)
     return `${min / 100} LPA - ${max / 100} LPA`;
   }
-  // If already in LPA format or not matching, return as is
   return salary;
-} 
+}

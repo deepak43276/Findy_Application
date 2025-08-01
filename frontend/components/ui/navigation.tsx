@@ -31,8 +31,8 @@ export function Navigation({ className }: NavigationProps) {
     { label: "Find Jobs", href: "/find-jobs", icon: Search },
     { label: "Find Talent", href: "/find-talent", icon: User },
     { label: "Post Job", href: "/post-job", icon: Briefcase },
-    { label: "Posted Jobs", href: "/posted-jobs" },
-    { label: "Job History", href: "/job-history" },
+   { label: "Applied Jobs", href: "/job-history" },
+    { label: "Saved Jobs", href: "/saved-jobs" },
   ];
 
   return (

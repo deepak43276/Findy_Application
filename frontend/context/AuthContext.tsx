@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
 interface User {
+  id: number;
   email: string;
   roles: string[];
-  // Add more user fields as needed
 }
 
 interface AuthContextType {
@@ -13,27 +13,27 @@ interface AuthContextType {
   logout: () => void;
   isAdmin: boolean;
   isUser: boolean;
-  // Add more role helpers as needed
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 function parseUserFromJWT(token: string): User | null {
   try {
-    const base64Url = token.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const base64Url = token.split(".")[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
     const jsonPayload = decodeURIComponent(
       atob(base64)
-        .split('')
-        .map(function (c) {
-          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        })
-        .join('')
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
     );
+
     const decoded: any = JSON.parse(jsonPayload);
+
     return {
+      id: decoded.id || decoded.userId || 0, // Ensure your backend includes `id` in JWT
       email: decoded.email || decoded.sub,
-      roles: decoded.roles || [decoded.role] || [],
+      roles: decoded.roles || (decoded.role ? [decoded.role] : []),
     };
   } catch (err) {
     return null;
@@ -83,4 +83,4 @@ export const useAuth = () => {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
-}; 
+};
