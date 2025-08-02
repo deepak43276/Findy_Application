@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/findy_db
-    username: postgres
-    password: deepak@2004
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/findy_db}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:deepak@2004}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -16,18 +16,18 @@ spring:
 
   security:
     user:
-      name: admin
-      password: admin
+      name: ${ADMIN_USER}
+      password: ${ADMIN_PASSWORD}
 
 server:
-  port: 8081
+  port: ${PORT:8081}
   error:
     include-message: always
     include-binding-errors: always
     include-stacktrace: always
 
 jwt:
-  secret: your-secret-key-here-make-it-long-and-secure
+  secret: ${JWT_SECRET}
   expiration: 86400000 # 24 hours
 
 logging:
