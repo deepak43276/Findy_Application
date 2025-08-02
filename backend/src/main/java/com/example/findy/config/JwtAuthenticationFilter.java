@@ -23,6 +23,7 @@ import java.util.Optional;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
     private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     @Autowired
@@ -59,38 +60,41 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String jwt = authHeader.substring(7);
         String email;
+
         try {
             email = jwtUtil.extractUsername(jwt);
             logger.debug("Extracted email from JWT: {}", email);
         } catch (Exception e) {
-            logger.warn("❌ Invalid JWT token: {}", e.getMessage());
+            logger.error("❌ JWT extraction failed for token: {} | Error: {}", jwt, e.getMessage());
             response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid JWT token");
             return;
         }
 
-        // 3️⃣ Authenticate user if not already in SecurityContext
+        // 3️⃣ Validate token & authenticate if not already in SecurityContext
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
-            Optional<User> userOpt = userRepository.findByEmail(email);
 
-            if (userOpt.isEmpty()) {
-                logger.warn("❌ No user found for email in JWT: {}", email);
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "User not found");
-                return;
-            }
-
+            // Check token validity first
             if (!jwtUtil.validateToken(jwt, email)) {
                 logger.warn("❌ JWT validation failed for email: {}", email);
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "JWT validation failed");
                 return;
             }
 
+            // Check if user exists in DB
+            Optional<User> userOpt = userRepository.findByEmail(email);
+            if (userOpt.isEmpty()) {
+                logger.warn("❌ No user found for email in JWT: {}", email);
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "User not found");
+                return;
+            }
+
             User dbUser = userOpt.get();
 
-            // ✅ Build UserDetails for SecurityContext
+            // ✅ Build UserDetails and set authentication in SecurityContext
             UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()
-                    .username(dbUser.getEmail())      // principal = email
-                    .password(dbUser.getPassword())   // not used for JWT
-                    .authorities(Collections.emptyList()) // Add roles if needed
+                    .username(dbUser.getEmail())       // principal = email
+                    .password(dbUser.getPassword())    // not used for JWT
+                    .authorities(Collections.emptyList()) // Add roles if required
                     .build();
 
             UsernamePasswordAuthenticationToken authToken =

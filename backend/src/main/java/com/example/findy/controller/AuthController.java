@@ -28,42 +28,62 @@ public class AuthController {
     @Autowired
     private JwtUtil jwtUtil;
 
+    // ====== LOGIN ENDPOINT ======
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody Map<String, String> loginRequest) {
-        String email = loginRequest.get("email");
-        String password = loginRequest.get("password");
+    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
+        String email = loginRequest.getEmail();
+        String password = loginRequest.getPassword();
 
-        logger.debug("Login attempt for email: {}", email);
+        logger.info("🔑 Login attempt for email: {}", email);
 
         Optional<User> userOpt = userRepository.findByEmail(email);
         if (userOpt.isEmpty()) {
-            logger.debug("No user found for email: {}", email);
+            logger.warn("❌ Login failed: User not found for {}", email);
             return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
         }
 
         User user = userOpt.get();
-        logger.debug("Stored hash for user: {}", user.getPassword());
-
         boolean matches = passwordEncoder.matches(password, user.getPassword());
-        logger.debug("Password match result: {}", matches);
 
         if (!matches) {
+            logger.warn("❌ Login failed: Wrong password for {}", email);
             return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
         }
 
-        // ✅ Fetch user roles safely
-        List<String> roles = user.getRoles() != null ? user.getRoles() : Collections.emptyList();
-
-        // ✅ Generate JWT with user ID, email, and roles
+        // ✅ Generate JWT with ID + Email + Roles
+        List<String> roles = (user.getRoles() != null) ? user.getRoles() : List.of("USER");
         String token = jwtUtil.generateToken(user.getId(), user.getEmail(), roles);
 
-        // ✅ Hide password in the response
+        // ✅ Build Response (Hiding password)
         user.setPassword(null);
+        LoginResponse response = new LoginResponse(token, user);
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("token", token);
-        response.put("user", user);
-
+        logger.info("✅ Login successful for {}", email);
         return ResponseEntity.ok(response);
+    }
+
+    // ====== DTO CLASSES ======
+    public static class LoginRequest {
+        private String email;
+        private String password;
+
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email; }
+
+        public String getPassword() { return password; }
+        public void setPassword(String password) { this.password = password; }
+    }
+
+    public static class LoginResponse {
+        private String token;
+        private User user;
+
+        public LoginResponse(String token, User user) {
+            this.token = token;
+            this.user = user;
+        }
+
+        public String getToken() { return token; }
+        public User getUser() { return user; }
     }
 }
