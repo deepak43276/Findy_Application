@@ -13,46 +13,32 @@ const SavedJobsContext = createContext<SavedJobsContextType | undefined>(undefin
 export const SavedJobsProvider = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
   const [savedJobs, setSavedJobs] = useState<number[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
 
   // ✅ Fetch saved jobs when user logs in
   useEffect(() => {
     if (!user?.id) {
       setSavedJobs([]);
-      setLoading(false);
       return;
     }
 
-    const fetchSavedJobs = async () => {
-      try {
-        setLoading(true);
-        const res = await fetch(`http://localhost:8081/api/saved-jobs/${user.id}`);
-        if (!res.ok) throw new Error("Failed to fetch saved jobs");
-
-        const data = await res.json();
-        // API returns full objects, so map to job IDs
+    fetch(`http://localhost:8081/api/saved-jobs/${user.id}`)
+      .then((res) => res.json())
+      .then((data) => {
         const jobIds = Array.isArray(data)
           ? data.map((item: any) => item.jobId)
           : [];
-
         setSavedJobs(jobIds);
-      } catch (err) {
+      })
+      .catch((err) => {
         console.error("Error fetching saved jobs:", err);
         setSavedJobs([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchSavedJobs();
+      });
   }, [user]);
 
-  // ✅ Toggle job save/unsave and instantly update from server response
+  // ✅ Toggle job save/unsave
   const toggleSaveJob = async (jobId: number) => {
     if (!user?.id) return;
-
     const isSaved = savedJobs.includes(jobId);
-    console.log(`🔄 Toggling job ID ${jobId}. Currently saved: ${isSaved}`);
 
     // Optimistic UI update
     setSavedJobs((prev) =>
@@ -60,21 +46,24 @@ export const SavedJobsProvider = ({ children }: { children: React.ReactNode }) =
     );
 
     try {
-      const endpoint = `http://localhost:8081/api/saved-jobs?userId=${user.id}&jobId=${jobId}`;
+      const url = `http://localhost:8081/api/saved-jobs?userId=${user.id}&jobId=${jobId}`;
       const method = isSaved ? "DELETE" : "POST";
 
-      const res = await fetch(endpoint, { method });
-      if (!res.ok) throw new Error(`Failed to ${isSaved ? "unsave" : "save"} job`);
+      const response = await fetch(url, { method });
 
-      // ✅ Update savedJobs directly from backend response (list of job IDs)
-      const updatedJobIds = await res.json();
-      if (Array.isArray(updatedJobIds)) {
-        setSavedJobs(updatedJobIds);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ Server error (${response.status}):`, errorText);
+        throw new Error(`Failed to ${isSaved ? "unsave" : "save"} job`);
       }
-    } catch (error) {
-      console.error("❌ Failed to toggle saved job:", error);
 
-      // Rollback UI if API fails
+      const updatedJobIds = await response.json();
+      setSavedJobs(updatedJobIds); // ✅ Sync with backend
+      
+
+    } catch (error) {
+     
+      // Rollback UI
       setSavedJobs((prev) =>
         isSaved ? [...prev, jobId] : prev.filter((id) => id !== jobId)
       );

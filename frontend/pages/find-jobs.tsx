@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Search, MapPin, Briefcase, Clock, Heart } from "lucide-react";
 import { motion, easeOut } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
+import { useSavedJobs } from "@/context/SavedJobsContext";
 
 interface Job {
   id: number;
@@ -26,12 +27,6 @@ interface Job {
   experienceLevel?: string;
 }
 
-interface SavedJob {
-  id: number;
-  userId: number;
-  jobId: number;
-}
-
 export default function FindJobs() {
   const [searchQuery, setSearchQuery] = useState("");
   const [location, setLocation] = useState("");
@@ -42,29 +37,32 @@ export default function FindJobs() {
   const [experienceLevel, setExperienceLevel] = useState<string | undefined>(undefined);
   const [salaryRange, setSalaryRange] = useState<string | undefined>(undefined);
 
-  const [savedJobs, setSavedJobs] = useState<number[]>([]);
-  const { user } = useAuth();
-  const userId = user?.id;
+  const { savedJobs, toggleSaveJob } = useSavedJobs();
 
   // Animations
   const pageVariants = {
     hidden: { opacity: 0, y: 32 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: easeOut } }
+    visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: easeOut } },
   };
   const cardStagger = { visible: { transition: { staggerChildren: 0.12 } } };
-  const cardVariants = { hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: easeOut } } };
+  const cardVariants = {
+    hidden: { opacity: 0, y: 24 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: easeOut } },
+  };
 
-  // Fetch jobs
+  // ✅ Fetch jobs
   useEffect(() => {
     setLoading(true);
     setError(null);
+
     const params = new URLSearchParams();
     if (searchQuery) params.append("search", searchQuery);
     if (location) params.append("location", location);
-    if (jobType && jobType !== "undefined") params.append("type", jobType);
+    if (jobType) params.append("type", jobType);
     if (experienceLevel) params.append("experienceLevel", experienceLevel);
 
     const url = `http://localhost:8081/api/jobs${params.toString() ? `?${params.toString()}` : ""}`;
+
     fetch(url)
       .then(async (res) => {
         if (!res.ok) throw new Error("Failed to fetch jobs");
@@ -78,70 +76,33 @@ export default function FindJobs() {
       });
   }, [searchQuery, location, jobType, experienceLevel]);
 
-  // Fetch saved jobs on mount
-  useEffect(() => {
-    if (!userId) return;
-    fetch(`http://localhost:8081/api/saved-jobs/${userId}`)
-      .then((res) => res.json())
-      .then((data: SavedJob[]) => {
-        setSavedJobs(data.map((d) => d.jobId));
-      })
-      .catch(() => {});
-  }, [userId]);
-
-  // Save/Unsave job
-  const toggleSaveJob = async (jobId: number) => {
-    if (!userId) return;
-
-    const isAlreadySaved = savedJobs.includes(jobId);
-
-    try {
-      if (isAlreadySaved) {
-        const res = await fetch(
-          `http://localhost:8081/api/saved-jobs?userId=${userId}&jobId=${jobId}`,
-          { method: "DELETE" }
-        );
-        if (res.ok) setSavedJobs((prev) => prev.filter((id) => id !== jobId));
-      } else {
-        const res = await fetch(
-          `http://localhost:8081/api/saved-jobs?userId=${userId}&jobId=${jobId}`,
-          { method: "POST" }
-        );
-        if (res.ok) setSavedJobs((prev) => [...prev, jobId]);
-      }
-    } catch (err) {
-      console.error("Failed to toggle saved job:", err);
-    }
-  };
-
+  // Filters
   const jobTypes = ["Full-time", "Part-time", "Contract", "Remote"];
   const experienceLevels = ["Entry Level", "Mid Level", "Senior Level", "Executive"];
   const salaryRanges = ["0 LPA - 4 LPA", "4 LPA - 8 LPA", "8 LPA - 12 LPA", "12 LPA+"];
 
-  function parseSalary(salaryStr: string): [number | null, number | null] {
+  const parseSalary = (salaryStr: string): [number | null, number | null] => {
     const match = salaryStr.match(/(\d+)\s*[lL][pP][aA]?\s*-\s*(\d+)\s*[lL][pP][aA]?/);
-    if (!match) return [null, null];
-    return [parseInt(match[1], 10) * 100000, parseInt(match[2], 10) * 100000];
-  }
+    return match ? [parseInt(match[1]) * 100000, parseInt(match[2]) * 100000] : [null, null];
+  };
 
-  function parseFilterRange(rangeStr: string): [number | null, number | null] {
-    const filterMatch = rangeStr.match(/(\d+)\s*[lL][pP][aA]?\s*-\s*(\d+)\s*[lL][pP][aA]?/);
-    if (!filterMatch) return [null, null];
-    return [parseInt(filterMatch[1], 10) * 100000, parseInt(filterMatch[2], 10) * 100000];
-  }
+  const parseFilterRange = (rangeStr: string): [number | null, number | null] => {
+    const match = rangeStr.match(/(\d+)\s*[lL][pP][aA]?\s*-\s*(\d+)\s*[lL][pP][aA]?/);
+    return match ? [parseInt(match[1]) * 100000, parseInt(match[2]) * 100000] : [null, null];
+  };
 
   const filteredJobs = jobListings.filter((job) => {
-    let matches = true;
-    if (salaryRange && job.salary) {
-      const [jobMin, jobMax] = parseSalary(job.salary);
-      const [filterMin, filterMax] = parseFilterRange(salaryRange);
-      if (jobMin === null || jobMax === null || filterMin === null || filterMax === null) {
-        matches = false;
-      } else {
-        matches = matches && jobMax >= filterMin && jobMin <= filterMax;
-      }
-    }
-    return matches;
+    if (!salaryRange || !job.salary) return true;
+    const [jobMin, jobMax] = parseSalary(job.salary);
+    const [filterMin, filterMax] = parseFilterRange(salaryRange);
+    return (
+      jobMin !== null &&
+      jobMax !== null &&
+      filterMin !== null &&
+      filterMax !== null &&
+      jobMax >= filterMin &&
+      jobMin <= filterMax
+    );
   });
 
   return (
@@ -186,18 +147,22 @@ export default function FindJobs() {
             <Card>
               <CardHeader><CardTitle>Filters</CardTitle></CardHeader>
               <CardContent className="space-y-6">
+                {/* Job Type Filter */}
                 <div>
                   <h3 className="font-medium mb-3">Job Type</h3>
-                  <div className="space-y-2">
-                    {jobTypes.map((type) => (
-                      <div key={type} className="flex items-center space-x-2">
-                        <Checkbox id={type} checked={jobType === type} onCheckedChange={(checked) => setJobType(checked ? type : undefined)} />
-                        <label htmlFor={type} className="text-sm">{type}</label>
-                      </div>
-                    ))}
-                  </div>
+                  {jobTypes.map((type) => (
+                    <div key={type} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={type}
+                        checked={jobType === type}
+                        onCheckedChange={(checked) => setJobType(checked ? type : undefined)}
+                      />
+                      <label htmlFor={type} className="text-sm">{type}</label>
+                    </div>
+                  ))}
                 </div>
 
+                {/* Experience Level */}
                 <div>
                   <h3 className="font-medium mb-3">Experience Level</h3>
                   <Select value={experienceLevel} onValueChange={setExperienceLevel}>
@@ -210,6 +175,7 @@ export default function FindJobs() {
                   </Select>
                 </div>
 
+                {/* Salary Range */}
                 <div>
                   <h3 className="font-medium mb-3">Salary Range</h3>
                   <Select value={salaryRange} onValueChange={setSalaryRange}>
@@ -226,7 +192,8 @@ export default function FindJobs() {
                   variant="outline"
                   className="w-full"
                   onClick={() => {
-                    setSearchQuery(""); setLocation(""); setJobType(undefined); setExperienceLevel(undefined); setSalaryRange(undefined);
+                    setSearchQuery(""); setLocation(""); setJobType(undefined);
+                    setExperienceLevel(undefined); setSalaryRange(undefined);
                   }}
                 >
                   Clear Filters
@@ -237,7 +204,12 @@ export default function FindJobs() {
 
           {/* Job Listings */}
           <div className="lg:col-span-3">
-            <motion.div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" variants={cardStagger} initial="hidden" animate="visible">
+            <motion.div
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+              variants={cardStagger}
+              initial="hidden"
+              animate="visible"
+            >
               {loading ? (
                 <div className="col-span-full text-center py-12 text-muted-foreground">Loading jobs...</div>
               ) : error ? (
@@ -247,6 +219,8 @@ export default function FindJobs() {
               ) : (
                 filteredJobs.map((job) => {
                   const isSaved = savedJobs.includes(job.id);
+                 
+
                   return (
                     <motion.div key={job.id} variants={cardVariants}>
                       <Card className="hover:shadow-xl transition-shadow duration-300">
@@ -308,10 +282,5 @@ export default function FindJobs() {
 
 function formatSalaryLPA(salary: string): string {
   const match = salary.match(/(\d+)[kK]? *- *(\d+)[kK]?/);
-  if (match) {
-    const min = parseInt(match[1], 10);
-    const max = parseInt(match[2], 10);
-    return `${min / 100} LPA - ${max / 100} LPA`;
-  }
-  return salary;
+  return match ? `${parseInt(match[1], 10) / 100} LPA - ${parseInt(match[2], 10) / 100} LPA` : salary;
 }
