@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar, MapPin, Mail, Phone, Globe, Plus, Edit, Trash2, Download, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 
 export default function Profile() {

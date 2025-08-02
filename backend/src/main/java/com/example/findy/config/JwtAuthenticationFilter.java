@@ -12,11 +12,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.Optional;
 
 @Component
@@ -36,53 +38,83 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String path = request.getRequestURI();
-        String query = request.getQueryString();
+        String method = request.getMethod();
 
-        // 1️⃣ Skip JWT validation for public endpoints & preflight requests
-        if (isPublicEndpoint(path) || "OPTIONS".equalsIgnoreCase(request.getMethod())) {
-            logger.debug("Skipping JWT check for public endpoint: {}?{}", path, query);
+        logger.debug(">>> Incoming request [{} {}]", method, path);
+
+        // 1️⃣ Skip JWT validation for public endpoints & preflight (CORS)
+        if (isPublicEndpoint(path) || "OPTIONS".equalsIgnoreCase(method)) {
+            logger.debug("Skipping JWT check for public endpoint or OPTIONS: {}", path);
             filterChain.doFilter(request, response);
             return;
         }
 
-        // 2️⃣ Extract token from Authorization header
+        // 2️⃣ Extract JWT from Authorization header
         final String authHeader = request.getHeader("Authorization");
-        String email = null;
-        String jwt = null;
-
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            jwt = authHeader.substring(7);
-            try {
-                email = jwtUtil.extractUsername(jwt);
-            } catch (Exception e) {
-                logger.warn("Invalid JWT token: {}", e.getMessage());
-            }
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            logger.warn("❌ Missing or invalid Authorization header for path: {}", path);
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Missing or invalid Authorization header");
+            return;
         }
 
-        // 3️⃣ Validate token & set SecurityContext
-        if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+        String jwt = authHeader.substring(7);
+        String email;
+        try {
+            email = jwtUtil.extractUsername(jwt);
+            logger.debug("Extracted email from JWT: {}", email);
+        } catch (Exception e) {
+            logger.warn("❌ Invalid JWT token: {}", e.getMessage());
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid JWT token");
+            return;
+        }
+
+        // 3️⃣ Authenticate user if not already in SecurityContext
+        if (SecurityContextHolder.getContext().getAuthentication() == null) {
             Optional<User> userOpt = userRepository.findByEmail(email);
-            if (userOpt.isPresent() && jwtUtil.validateToken(jwt, email)) {
-                User user = userOpt.get();
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                        user, null, null // You can attach roles if needed
-                );
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+
+            if (userOpt.isEmpty()) {
+                logger.warn("❌ No user found for email in JWT: {}", email);
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "User not found");
+                return;
             }
+
+            if (!jwtUtil.validateToken(jwt, email)) {
+                logger.warn("❌ JWT validation failed for email: {}", email);
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "JWT validation failed");
+                return;
+            }
+
+            User dbUser = userOpt.get();
+
+            // ✅ Build UserDetails for SecurityContext
+            UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()
+                    .username(dbUser.getEmail())      // principal = email
+                    .password(dbUser.getPassword())   // not used for JWT
+                    .authorities(Collections.emptyList()) // Add roles if needed
+                    .build();
+
+            UsernamePasswordAuthenticationToken authToken =
+                    new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+
+            authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+            SecurityContextHolder.getContext().setAuthentication(authToken);
+
+            logger.debug("✅ Successfully authenticated user: {}", email);
         }
 
+        // 4️⃣ Continue the filter chain
         filterChain.doFilter(request, response);
     }
 
     /**
-     * Define all public endpoints here
+     * ✅ Public endpoints (no JWT required)
      */
     private boolean isPublicEndpoint(String path) {
         return path.startsWith("/api/jobs")
                 || path.startsWith("/api/auth")
                 || path.startsWith("/api/users/register")
                 || path.startsWith("/api/candidates")
+                || path.startsWith("/api/saved-jobs")
                 || path.equals("/error");
     }
 }
