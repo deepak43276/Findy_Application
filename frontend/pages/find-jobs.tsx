@@ -10,8 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Search, MapPin, Briefcase, Clock, Heart } from "lucide-react";
 import { motion, easeOut } from "framer-motion";
-import { useAuth } from "@/context/AuthContext";
 import { useSavedJobs } from "@/context/SavedJobsContext";
+import { useAppliedJobs } from "@/context/AppliedJobsContext";
 
 interface Job {
   id: number;
@@ -38,6 +38,7 @@ export default function FindJobs() {
   const [salaryRange, setSalaryRange] = useState<string | undefined>(undefined);
 
   const { savedJobs, toggleSaveJob } = useSavedJobs();
+  const { appliedJobs, applyJob } = useAppliedJobs();
 
   // Animations
   const pageVariants = {
@@ -50,7 +51,7 @@ export default function FindJobs() {
     visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: easeOut } },
   };
 
-  // ✅ Fetch jobs
+  // Fetch jobs
   useEffect(() => {
     setLoading(true);
     setError(null);
@@ -106,7 +107,12 @@ export default function FindJobs() {
   });
 
   return (
-    <motion.div initial="hidden" animate="visible" variants={pageVariants} className="min-h-screen bg-background">
+    <motion.div
+      initial="hidden"
+      animate="visible"
+      variants={pageVariants}
+      className="min-h-screen bg-background relative z-0"
+    >
       <Navigation />
       <div className="container mx-auto px-4 py-8">
         {/* Search Header */}
@@ -147,7 +153,6 @@ export default function FindJobs() {
             <Card>
               <CardHeader><CardTitle>Filters</CardTitle></CardHeader>
               <CardContent className="space-y-6">
-                {/* Job Type Filter */}
                 <div>
                   <h3 className="font-medium mb-3">Job Type</h3>
                   {jobTypes.map((type) => (
@@ -162,7 +167,6 @@ export default function FindJobs() {
                   ))}
                 </div>
 
-                {/* Experience Level */}
                 <div>
                   <h3 className="font-medium mb-3">Experience Level</h3>
                   <Select value={experienceLevel} onValueChange={setExperienceLevel}>
@@ -175,7 +179,6 @@ export default function FindJobs() {
                   </Select>
                 </div>
 
-                {/* Salary Range */}
                 <div>
                   <h3 className="font-medium mb-3">Salary Range</h3>
                   <Select value={salaryRange} onValueChange={setSalaryRange}>
@@ -205,7 +208,7 @@ export default function FindJobs() {
           {/* Job Listings */}
           <div className="lg:col-span-3">
             <motion.div
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pointer-events-auto"
               variants={cardStagger}
               initial="hidden"
               animate="visible"
@@ -219,12 +222,12 @@ export default function FindJobs() {
               ) : (
                 filteredJobs.map((job) => {
                   const isSaved = savedJobs.includes(job.id);
-                 
+                  const isApplied = appliedJobs.includes(job.id);
 
                   return (
                     <motion.div key={job.id} variants={cardVariants}>
-                      <Card className="hover:shadow-xl transition-shadow duration-300">
-                        <CardContent className="p-6">
+                      <Card className="hover:shadow-xl transition-shadow duration-300 relative z-10">
+                        <CardContent className="p-6 relative z-20 pointer-events-auto">
                           <div className="flex items-start justify-between mb-4">
                             <div className="flex-1">
                               <h3 className="text-xl font-semibold mb-2">{job.title}</h3>
@@ -263,7 +266,16 @@ export default function FindJobs() {
                               <Button variant={isSaved ? "default" : "outline"} onClick={() => toggleSaveJob(job.id)}>
                                 {isSaved ? "Saved" : "Save"}
                               </Button>
-                              <Button className="bg-primary hover:bg-primary/90">Apply Now</Button>
+                              <Button
+                                className={`${isApplied ? "bg-primary hover:bg-primary/90" : "bg-primary hover:bg-primary/90"} relative z-50 pointer-events-auto`}
+                                onClick={() => {
+                                  console.log("Apply clicked:", job.id);
+                                  applyJob(job.id);
+                                }}
+                                disabled={isApplied}
+                              >
+                                {isApplied ? "Applied" : "Apply Now"}
+                              </Button>
                             </div>
                           </div>
                         </CardContent>
