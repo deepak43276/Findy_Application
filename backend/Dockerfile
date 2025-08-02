@@ -6,6 +6,10 @@ WORKDIR /app
 # Copy Maven files and build the app
 COPY mvnw pom.xml ./
 COPY .mvn .mvn
+
+# Ensure mvnw is executable
+RUN chmod +x mvnw
+
 RUN ./mvnw dependency:go-offline
 
 # Copy source and build
@@ -16,9 +20,6 @@ RUN ./mvnw clean package -DskipTests
 FROM eclipse-temurin:22-jdk
 
 WORKDIR /app
-
-# Copy the built JAR from the builder
 COPY --from=builder /app/target/*.jar app.jar
 
-# Run the app
 CMD ["java", "-jar", "app.jar"]
