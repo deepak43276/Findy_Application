@@ -1,14 +1,27 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, Briefcase, TrendingUp, Star, Plus, Settings } from 'lucide-react';
+import {
+  Users,
+  Briefcase,
+  TrendingUp,
+  Star,
+  Plus,
+  Settings,
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/router';
-import { withAdminProtection } from "@/components/withAdminProtection";
+import { withAdminProtection } from '@/components/withAdminProtection';
 
 interface User {
   id: number;
@@ -46,8 +59,11 @@ interface DashboardStats {
   jobApplications: number;
 }
 
+// ✅ Centralized API base for CORS and deployment
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081';
+
 const AdminDashboard = () => {
-  const { isAdmin, user, token } = useAuth();
+  const { isAdmin, token } = useAuth();
   const router = useRouter();
   const [stats, setStats] = useState<DashboardStats>({
     totalUsers: 0,
@@ -74,12 +90,19 @@ const AdminDashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+
+      // ✅ Type-safe headers
+      const headers: HeadersInit = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const [statsResponse, usersResponse, jobsResponse] = await Promise.all([
-        fetch('http://localhost:8081/api/admin/dashboard', { headers }),
-        fetch('http://localhost:8081/api/admin/users', { headers }),
-        fetch('http://localhost:8081/api/admin/jobs', { headers }),
+        fetch(`${API_BASE_URL}/api/admin/dashboard`, { headers }),
+        fetch(`${API_BASE_URL}/api/admin/users`, { headers }),
+        fetch(`${API_BASE_URL}/api/admin/jobs`, { headers }),
       ]);
+
       if (statsResponse.ok && usersResponse.ok && jobsResponse.ok) {
         const [statsData, usersData, jobsData] = await Promise.all([
           statsResponse.json(),
@@ -90,7 +113,7 @@ const AdminDashboard = () => {
         setRecentUsers(usersData);
         setRecentJobs(jobsData);
       } else {
-        // Fallback sample data for development
+        // fallback dummy data
         setStats({
           totalUsers: 1247,
           totalJobs: 89,
@@ -141,7 +164,13 @@ const AdminDashboard = () => {
     }
   };
 
-  const StatCard = ({ title, value, description, icon: Icon, trend }: {
+  const StatCard = ({
+    title,
+    value,
+    description,
+    icon: Icon,
+    trend,
+  }: {
     title: string;
     value: string | number;
     description: string;
@@ -162,9 +191,7 @@ const AdminDashboard = () => {
     </Card>
   );
 
-  if (!isAdmin) {
-    return null;
-  }
+  if (!isAdmin) return null;
 
   if (loading) {
     return (
@@ -242,26 +269,29 @@ const AdminDashboard = () => {
           <TabsTrigger value="users">Recent Users</TabsTrigger>
           <TabsTrigger value="jobs">Recent Jobs</TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="users" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>Recently Registered Users</CardTitle>
-              <CardDescription>
-                New users who joined the platform
-              </CardDescription>
+              <CardDescription>New users who joined the platform</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {recentUsers.map((user) => (
-                  <div key={user.id} className="flex items-center space-x-4 p-4 border rounded-lg">
+                  <div
+                    key={user.id}
+                    className="flex items-center space-x-4 p-4 border rounded-lg"
+                  >
                     <div className="flex-1">
                       <h4 className="font-medium">
                         {user.first_name} {user.last_name}
                       </h4>
                       <p className="text-sm text-muted-foreground">{user.email}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <Badge variant="outline">{user.experience_level}</Badge>
+                        {user.experience_level && (
+                          <Badge variant="outline">{user.experience_level}</Badge>
+                        )}
                         {user.location && (
                           <span className="text-xs text-muted-foreground">
                             {user.location}
@@ -283,19 +313,20 @@ const AdminDashboard = () => {
             </CardContent>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="jobs" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>Recently Posted Jobs</CardTitle>
-              <CardDescription>
-                Latest job listings on the platform
-              </CardDescription>
+              <CardDescription>Latest job listings on the platform</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {recentJobs.map((job) => (
-                  <div key={job.id} className="flex items-center space-x-4 p-4 border rounded-lg">
+                  <div
+                    key={job.id}
+                    className="flex items-center space-x-4 p-4 border rounded-lg"
+                  >
                     <div className="flex-1">
                       <h4 className="font-medium">{job.title}</h4>
                       <p className="text-sm text-muted-foreground">
@@ -303,12 +334,8 @@ const AdminDashboard = () => {
                       </p>
                       <div className="flex items-center gap-2 mt-1">
                         <Badge variant="outline">{job.type}</Badge>
-                        {job.featured && (
-                          <Badge variant="secondary">Featured</Badge>
-                        )}
-                        {job.remote && (
-                          <Badge variant="outline">Remote</Badge>
-                        )}
+                        {job.featured && <Badge variant="secondary">Featured</Badge>}
+                        {job.remote && <Badge variant="outline">Remote</Badge>}
                       </div>
                     </div>
                     <div className="text-right">
@@ -330,4 +357,4 @@ const AdminDashboard = () => {
   );
 };
 
-export default withAdminProtection(AdminDashboard); 
+export default withAdminProtection(AdminDashboard);

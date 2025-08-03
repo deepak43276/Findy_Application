@@ -1,308 +1,251 @@
-import { useState, useEffect } from "react";
-import { Navigation } from "@/components/ui/navigation";
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { MapPin, Star } from "lucide-react";
-import { motion, easeOut } from "framer-motion";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Eye, EyeOff, Briefcase } from "lucide-react";
+import { useRouter } from "next/router";
+import { useAuth } from "@/context/AuthContext";
 
-interface Candidate {
-  id: number;
-  name: string;
-  title: string;
-  location: string;
-  experience: string;
-  experienceLevel?: string;
-  rate: string;
-  rating: number;
-  skills: string[];
-  avatar: string;
-  available: boolean;
-  description: string;
-}
+// ✅ Centralized API base URL
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8081";
 
-export default function FindTalent() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [location, setLocation] = useState("");
-  const [candidates, setCandidates] = useState<Candidate[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
-  const [selectedExperience, setSelectedExperience] = useState<string | undefined>(undefined);
-  const [selectedRate, setSelectedRate] = useState<string | undefined>(undefined);
-  const [sortOption, setSortOption] = useState("rating");
+export default function Login() {
+  const [showPassword, setShowPassword] = useState(false);
 
-  useEffect(() => {
-    setLoading(true);
-    setError(null);
-    fetch("http://localhost:8081/api/candidates")
-      .then(async (res) => {
-        if (!res.ok) throw new Error("Failed to fetch candidates");
-        const data = await res.json();
-        setCandidates(data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message || "Error fetching candidates");
-        setLoading(false);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+
+  const [registerFirstName, setRegisterFirstName] = useState("");
+  const [registerLastName, setRegisterLastName] = useState("");
+  const [registerEmail, setRegisterEmail] = useState("");
+  const [registerPassword, setRegisterPassword] = useState("");
+
+  const [loginError, setLoginError] = useState("");
+  const [registerError, setRegisterError] = useState("");
+
+  const router = useRouter();
+  const { login: authLogin } = useAuth();
+
+  // ✅ Handle Login
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError("");
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
       });
-  }, []);
 
-  const skills = ["React", "Python", "Design", "Marketing", "Data Science", "Node.js", "AWS", "Figma"];
-  const experienceLevels = ["Entry Level", "Mid Level", "Senior Level", "Expert"];
-  const hourlyRates = ["0 LPA - 4 LPA", "4 LPA - 8 LPA", "8 LPA - 12 LPA", "12 LPA+"];
+      if (!res.ok) {
+        setLoginError("Invalid credentials");
+        return;
+      }
 
-  const pageVariants = {
-    hidden: { opacity: 0, y: 32 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: easeOut } },
+      const data = await res.json();
+      if (data.token) {
+        authLogin(data.token);
+        router.push("/");
+      } else {
+        setLoginError("No token returned");
+      }
+    } catch (err) {
+      setLoginError("Login failed");
+    }
   };
-  const cardStagger = { visible: { transition: { staggerChildren: 0.12 } } };
-  const cardVariants = {
-    hidden: { opacity: 0, y: 24 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: easeOut } },
+
+  // ✅ Handle Register
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRegisterError("");
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/users/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: registerFirstName,
+          lastName: registerLastName,
+          email: registerEmail,
+          password: registerPassword,
+        }),
+      });
+
+      if (!res.ok) {
+        setRegisterError("Registration failed. Email may already be in use.");
+        return;
+      }
+
+      router.push("/");
+    } catch (err) {
+      setRegisterError("Registration failed");
+    }
   };
-
-  // ✅ Parse salary (single or range)
-  function parseRate(rateStr: string): [number | null, number | null] {
-    const rangeMatch = rateStr.match(/(\d+)\s*[lL][pP][aA]?\s*-\s*(\d+)\s*[lL][pP][aA]?/);
-    const singleMatch = rateStr.match(/(\d+)\s*[lL][pP][aA]?/);
-
-    if (rangeMatch) {
-      return [parseInt(rangeMatch[1], 10) * 100000, parseInt(rangeMatch[2], 10) * 100000];
-    } else if (singleMatch) {
-      const value = parseInt(singleMatch[1], 10) * 100000;
-      return [value, value];
-    }
-    return [null, null];
-  }
-
-  function parseFilterRate(rangeStr: string): [number | null, number | null] {
-    const match = rangeStr.match(/(\d+)\s*[lL][pP][aA]?\s*-\s*(\d+)\s*[lL][pP][aA]?/);
-    if (!match) return [null, null];
-    return [parseInt(match[1], 10) * 100000, parseInt(match[2], 10) * 100000];
-  }
-
-  // ✅ Filter candidates
-  const filteredCandidates = candidates.filter((candidate) => {
-    let matches = true;
-
-    // Search
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      matches =
-        matches &&
-        (candidate.name.toLowerCase().includes(q) ||
-          candidate.title.toLowerCase().includes(q) ||
-          (candidate.description && candidate.description.toLowerCase().includes(q)));
-    }
-
-    // Location
-    if (location) matches = matches && candidate.location.toLowerCase().includes(location.toLowerCase());
-
-    // Skills
-    if (selectedSkills.length > 0 && candidate.skills.length > 0) {
-      matches =
-        matches &&
-        selectedSkills.some((skill) =>
-          candidate.skills.some((s) => s.toLowerCase() === skill.toLowerCase())
-        );
-    }
-
-    // Experience
-    if (selectedExperience) matches = matches && candidate.experienceLevel === selectedExperience;
-
-    // Salary Range
-    if (selectedRate && candidate.rate) {
-      const [candMin, candMax] = parseRate(candidate.rate);
-      const [filterMin, filterMax] = parseFilterRate(selectedRate);
-
-      if (candMin === null || candMax === null) return false;
-      if (filterMin === null || filterMax === null) return true;
-
-      matches = matches && candMax >= filterMin && candMin <= filterMax;
-    }
-
-    return matches;
-  });
-
-  // ✅ Sorting Logic
-  const sortedCandidates = [...filteredCandidates].sort((a, b) => {
-    const [aMin, aMax] = parseRate(a.rate);
-    const [bMin, bMax] = parseRate(b.rate);
-
-    switch (sortOption) {
-      case "rate-low":
-        return (aMin || 0) - (bMin || 0);
-      case "rate-high":
-        return (bMax || 0) - (aMax || 0);
-      case "experience":
-        const expA = parseInt(a.experience) || 0;
-        const expB = parseInt(b.experience) || 0;
-        return expB - expA;
-      case "rating":
-      default:
-        return (b.rating || 0) - (a.rating || 0);
-    }
-  });
 
   return (
-    <motion.div initial="hidden" animate="visible" variants={pageVariants} className="min-h-screen bg-background">
-      <Navigation />
+    <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-primary/5 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {/* Logo */}
+        <div className="flex items-center justify-center mb-8">
+          <Link href="/" className="flex items-center space-x-2">
+            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+              <Briefcase className="w-6 h-6 text-primary-foreground" />
+            </div>
+            <span className="text-2xl font-bold gradient-text">JobHook</span>
+          </Link>
+        </div>
 
-      <div className="container mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* Filters Sidebar */}
-        <div className="lg:col-span-1">
-          <Card>
-            <CardContent className="p-6 space-y-6">
-              {/* Skills Filter */}
-              <div>
-                <h3 className="font-medium mb-3">Skills</h3>
-                <div className="space-y-2">
-                  {skills.map((skill) => {
-                    const normalizedSkill = skill.toLowerCase();
-                    return (
-                      <div key={skill} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={skill}
-                          checked={selectedSkills.includes(normalizedSkill)}
-                          onCheckedChange={(checked) => {
-                            setSelectedSkills((prev) =>
-                              checked
-                                ? [...prev, normalizedSkill]
-                                : prev.filter((s) => s !== normalizedSkill)
-                            );
-                          }}
-                        />
-                        <label htmlFor={skill} className="text-sm">
-                          {skill}
-                        </label>
-                      </div>
-                    );
-                  })}
+        {/* Tabs for Login & Register */}
+        <Tabs defaultValue="login" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="login">Login</TabsTrigger>
+            <TabsTrigger value="register">Register</TabsTrigger>
+          </TabsList>
+
+          {/* Login Tab */}
+          <TabsContent value="login">
+            <Card>
+              <CardHeader>
+                <CardTitle>Welcome back</CardTitle>
+                <CardDescription>Sign in to your account to continue</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="Enter your email"
+                      required
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Enter your password"
+                        required
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {loginError && <div className="text-red-500 text-sm">{loginError}</div>}
+
+                  <Button type="submit" className="w-full bg-primary hover:bg-primary/90">
+                    Sign In
+                  </Button>
+                </form>
+
+                <div className="text-center text-sm">
+                  <Link href="#" className="text-primary hover:underline">
+                    Forgot your password?
+                  </Link>
                 </div>
-              </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-              {/* Experience Filter */}
-              <div>
-                <h3 className="font-medium mb-3">Experience Level</h3>
-                <Select value={selectedExperience} onValueChange={setSelectedExperience}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select level" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {experienceLevels.map((level) => (
-                      <SelectItem key={level} value={level}>
-                        {level}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          {/* Register Tab */}
+          <TabsContent value="register">
+            <Card>
+              <CardHeader>
+                <CardTitle>Create account</CardTitle>
+                <CardDescription>Sign up to start your job search</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <form onSubmit={handleRegister} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="firstName">First Name</Label>
+                      <Input
+                        id="firstName"
+                        placeholder="John"
+                        required
+                        value={registerFirstName}
+                        onChange={(e) => setRegisterFirstName(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName">Last Name</Label>
+                      <Input
+                        id="lastName"
+                        placeholder="Doe"
+                        required
+                        value={registerLastName}
+                        onChange={(e) => setRegisterLastName(e.target.value)}
+                      />
+                    </div>
+                  </div>
 
-              {/* Rate Filter */}
-              <div>
-                <h3 className="font-medium mb-3">Salary Range</h3>
-                <Select value={selectedRate} onValueChange={setSelectedRate}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select range" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {hourlyRates.map((rate) => (
-                      <SelectItem key={rate} value={rate}>
-                        {rate}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="registerEmail">Email</Label>
+                    <Input
+                      id="registerEmail"
+                      type="email"
+                      placeholder="Enter your email"
+                      required
+                      value={registerEmail}
+                      onChange={(e) => setRegisterEmail(e.target.value)}
+                    />
+                  </div>
 
-              {/* Clear Filters */}
-              <div>
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => {
-                    setSearchQuery("");
-                    setLocation("");
-                    setSelectedSkills([]);
-                    setSelectedExperience(undefined);
-                    setSelectedRate(undefined);
-                  }}
-                >
-                  Clear Filters
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="registerPassword">Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="registerPassword"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Create a password"
+                        required
+                        value={registerPassword}
+                        onChange={(e) => setRegisterPassword(e.target.value)}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
 
-        {/* Talent Listings */}
-        <div className="lg:col-span-3">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-semibold">Talent Results</h2>
-            <Select value={sortOption} onValueChange={setSortOption}>
-              <SelectTrigger className="w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="rating">Highest Rated</SelectItem>
-                <SelectItem value="rate-low">Rate: Low to High</SelectItem>
-                <SelectItem value="rate-high">Rate: High to Low</SelectItem>
-                <SelectItem value="experience">Most Experience</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+                  {registerError && <div className="text-red-500 text-sm">{registerError}</div>}
 
-          <motion.div
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
-            variants={cardStagger}
-            initial="hidden"
-            animate="visible"
-          >
-            {sortedCandidates.map((candidate) => (
-              <motion.div key={candidate.id} variants={cardVariants}>
-                <Card className="hover:shadow-xl transition-shadow duration-300">
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-4 mb-4">
-                      <Avatar>
-                        <AvatarImage src={candidate.avatar} />
-                        <AvatarFallback>{candidate.name[0]}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <h3 className="text-lg font-semibold">{candidate.name}</h3>
-                        <div className="text-muted-foreground text-sm">{candidate.title}</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center text-muted-foreground mb-2">
-                      <MapPin className="w-4 h-4 mr-1" />
-                      <span>{candidate.location}</span>
-                    </div>
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {candidate.skills.map((skill) => (
-                        <Badge key={skill}>{skill}</Badge>
-                      ))}
-                    </div>
-                    <div className="flex justify-between text-sm mb-2 text-muted-foreground">
-                      <span>Experience: {candidate.experienceLevel || candidate.experience}</span>
-                      <span>Package: {candidate.rate}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-yellow-500 mb-2">
-                      {[...Array(Math.max(0, Math.round(Number(candidate.rating) || 0)))].map((_, i) => (
-                        <Star key={i} className="w-4 h-4" />
-                      ))}
-                    </div>
-                    <p className="text-muted-foreground text-sm mb-2">{candidate.description}</p>
-                    <Button className="w-full bg-primary hover:bg-primary/90">Contact</Button>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
+                  <Button type="submit" className="w-full bg-primary hover:bg-primary/90">
+                    Create Account
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
-    </motion.div>
+    </div>
   );
 }

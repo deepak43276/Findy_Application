@@ -9,6 +9,9 @@ import { useRouter } from "next/router";
 import { useAuth } from "@/context/AuthContext";
 import { withAdminProtection } from "@/components/withAdminProtection";
 
+// ✅ Centralized API Base URL for CORS and Production
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081";
+
 function AdminPage() {
   const { user, isAdmin, login } = useAuth();
   const router = useRouter();
@@ -18,7 +21,7 @@ function AdminPage() {
   const [loginError, setLoginError] = useState("");
   const [loginSuccess, setLoginSuccess] = useState(false);
 
-  // If already logged in as admin, show dashboard
+  // ✅ If already logged in as admin, show dashboard
   if (user && isAdmin) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-primary/5 flex items-center justify-center p-4">
@@ -37,7 +40,6 @@ function AdminPage() {
               <CardDescription>Welcome, {user.email}!</CardDescription>
             </CardHeader>
             <CardContent>
-              {/* Add more admin dashboard content here */}
               <div className="text-muted-foreground">You have admin access.</div>
             </CardContent>
           </Card>
@@ -46,32 +48,32 @@ function AdminPage() {
     );
   }
 
-  // Handle login form submit
+  // ✅ Handle login form submit
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginLoading(true);
     setLoginError("");
     setLoginSuccess(false);
     try {
-      const res = await fetch("http://localhost:8081/api/users/login", {
+      const res = await fetch(`${API_BASE_URL}/api/users/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(loginData),
       });
-      
+
       if (!res.ok) {
         throw new Error("Invalid credentials");
       }
-      
+
       const data = await res.json();
       if (!data.token) {
         throw new Error("No token returned");
       }
-      
-      // Store the token and parse user info
+
+      // ✅ Store the token via AuthContext
       login(data.token);
-      
-      // Check if user is admin by decoding the JWT
+
+      // ✅ Decode token to check admin role
       try {
         const decoded = JSON.parse(atob(data.token.split(".")[1]));
         if (decoded.role === "ROLE_ADMIN" || decoded.roles === "ROLE_ADMIN") {
@@ -80,7 +82,7 @@ function AdminPage() {
         } else {
           setLoginError("You are not an admin.");
         }
-      } catch (decodeError) {
+      } catch {
         setLoginError("Invalid token format.");
       }
     } catch (err: any) {
@@ -151,7 +153,11 @@ function AdminPage() {
               </div>
               {loginError && <div className="text-red-500 text-sm">{loginError}</div>}
               {loginSuccess && <div className="text-green-600 text-sm">Login successful!</div>}
-              <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={loginLoading}>
+              <Button
+                type="submit"
+                className="w-full bg-primary hover:bg-primary/90"
+                disabled={loginLoading}
+              >
                 {loginLoading ? "Signing In..." : "Sign In as Admin"}
               </Button>
             </form>
@@ -162,4 +168,4 @@ function AdminPage() {
   );
 }
 
-export default withAdminProtection(AdminPage); 
+export default withAdminProtection(AdminPage);

@@ -13,6 +13,9 @@ import { motion, easeOut } from "framer-motion";
 import { useSavedJobs } from "@/context/SavedJobsContext";
 import { useAppliedJobs } from "@/context/AppliedJobsContext";
 
+// ✅ Centralized API URL
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081";
+
 interface Job {
   id: number;
   title: string;
@@ -51,7 +54,7 @@ export default function FindJobs() {
     visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: easeOut } },
   };
 
-  // Fetch jobs
+  // Fetch jobs from API with filters
   useEffect(() => {
     setLoading(true);
     setError(null);
@@ -62,7 +65,7 @@ export default function FindJobs() {
     if (jobType) params.append("type", jobType);
     if (experienceLevel) params.append("experienceLevel", experienceLevel);
 
-    const url = `http://localhost:8081/api/jobs${params.toString() ? `?${params.toString()}` : ""}`;
+    const url = `${API_BASE_URL}/api/jobs${params.toString() ? `?${params.toString()}` : ""}`;
 
     fetch(url)
       .then(async (res) => {
@@ -107,12 +110,7 @@ export default function FindJobs() {
   });
 
   return (
-    <motion.div
-      initial="hidden"
-      animate="visible"
-      variants={pageVariants}
-      className="min-h-screen bg-background relative z-0"
-    >
+    <motion.div initial="hidden" animate="visible" variants={pageVariants} className="min-h-screen bg-background relative z-0">
       <Navigation />
       <div className="container mx-auto px-4 py-8">
         {/* Search Header */}
@@ -151,8 +149,11 @@ export default function FindJobs() {
           {/* Filters */}
           <div className="lg:col-span-1">
             <Card>
-              <CardHeader><CardTitle>Filters</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle>Filters</CardTitle>
+              </CardHeader>
               <CardContent className="space-y-6">
+                {/* Job Type */}
                 <div>
                   <h3 className="font-medium mb-3">Job Type</h3>
                   {jobTypes.map((type) => (
@@ -167,6 +168,7 @@ export default function FindJobs() {
                   ))}
                 </div>
 
+                {/* Experience Level */}
                 <div>
                   <h3 className="font-medium mb-3">Experience Level</h3>
                   <Select value={experienceLevel} onValueChange={setExperienceLevel}>
@@ -179,6 +181,7 @@ export default function FindJobs() {
                   </Select>
                 </div>
 
+                {/* Salary Range */}
                 <div>
                   <h3 className="font-medium mb-3">Salary Range</h3>
                   <Select value={salaryRange} onValueChange={setSalaryRange}>
@@ -267,11 +270,8 @@ export default function FindJobs() {
                                 {isSaved ? "Saved" : "Save"}
                               </Button>
                               <Button
-                                className={`${isApplied ? "bg-primary hover:bg-primary/90" : "bg-primary hover:bg-primary/90"} relative z-50 pointer-events-auto`}
-                                onClick={() => {
-                                  console.log("Apply clicked:", job.id);
-                                  applyJob(job.id);
-                                }}
+                                className="bg-primary hover:bg-primary/90"
+                                onClick={() => applyJob(job.id)}
                                 disabled={isApplied}
                               >
                                 {isApplied ? "Applied" : "Apply Now"}

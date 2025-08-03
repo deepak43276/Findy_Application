@@ -1,4 +1,4 @@
-package com.example.findy.model.dto; 
+package com.example.findy.dto; 
 
 public class AppliedJobRequest {
     private Long userId;

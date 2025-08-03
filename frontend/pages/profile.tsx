@@ -14,7 +14,10 @@ import { MapPin, Mail, Phone, Globe, Edit, Download, Upload } from "lucide-react
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, Variants, easeOut } from "framer-motion";
+
+// ✅ Centralized API Base URL
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8081";
 
 export default function Profile() {
   const { toast } = useToast();
@@ -36,12 +39,16 @@ export default function Profile() {
       setLoading(true);
       setError("");
       try {
-        const res = await fetch("http://localhost:8081/api/users/me", {
+        const res = await fetch(`${API_BASE_URL}/api/users/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
         if (res.status === 401) {
-          toast({ title: "Session expired", description: "Please log in again.", variant: "destructive" });
+          toast({
+            title: "Session expired",
+            description: "Please log in again.",
+            variant: "destructive",
+          });
           logout();
           router.push("/login");
           return;
@@ -53,7 +60,11 @@ export default function Profile() {
         setUserData(data);
       } catch (err: any) {
         setError(err.message || "Error fetching user info");
-        toast({ title: "Error", description: err.message || "Error fetching user info", variant: "destructive" });
+        toast({
+          title: "Error",
+          description: err.message || "Error fetching user info",
+          variant: "destructive",
+        });
       } finally {
         setLoading(false);
       }
@@ -75,7 +86,7 @@ export default function Profile() {
     setSuccess("");
 
     try {
-      const res = await fetch(`http://localhost:8081/api/users/${userData.id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/users/${userData.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -85,7 +96,11 @@ export default function Profile() {
       });
 
       if (res.status === 401) {
-        toast({ title: "Session expired", description: "Please log in again.", variant: "destructive" });
+        toast({
+          title: "Session expired",
+          description: "Please log in again.",
+          variant: "destructive",
+        });
         logout();
         router.push("/login");
         return;
@@ -97,16 +112,28 @@ export default function Profile() {
       toast({ title: "Success", description: "Profile updated successfully." });
     } catch (err: any) {
       setError(err.message || "Error updating profile");
-      toast({ title: "Error", description: err.message || "Error updating profile", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: err.message || "Error updating profile",
+        variant: "destructive",
+      });
     } finally {
       setSaveLoading(false);
     }
   };
 
   // ===== Animations =====
-  const pageVariants = { hidden: { opacity: 0, y: 32 }, visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: "easeOut" } } };
-  const cardStagger = { visible: { transition: { staggerChildren: 0.12 } } };
-  const cardVariants = { hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } } };
+  const pageVariants: Variants = {
+    hidden: { opacity: 0, y: 32 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: easeOut } },
+  };
+  const cardStagger: Variants = {
+    visible: { transition: { staggerChildren: 0.12 } },
+  };
+  const cardVariants: Variants = {
+    hidden: { opacity: 0, y: 24 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: easeOut } },
+  };
 
   return (
     <motion.div initial="hidden" animate="visible" variants={pageVariants} className="min-h-screen bg-background">
@@ -127,19 +154,36 @@ export default function Profile() {
                       <div className="relative inline-block mb-4">
                         <Avatar className="w-24 h-24">
                           <AvatarImage src="/placeholder.svg" />
-                          <AvatarFallback>{userData.firstName?.[0]}{userData.lastName?.[0]}</AvatarFallback>
+                          <AvatarFallback>
+                            {userData.firstName?.[0]}
+                            {userData.lastName?.[0]}
+                          </AvatarFallback>
                         </Avatar>
                         <Button size="sm" variant="outline" className="absolute -bottom-2 -right-2 rounded-full p-2">
                           <Upload className="w-3 h-3" />
                         </Button>
                       </div>
-                      <h2 className="text-2xl font-bold mb-2">{userData.firstName} {userData.lastName}</h2>
+                      <h2 className="text-2xl font-bold mb-2">
+                        {userData.firstName} {userData.lastName}
+                      </h2>
                       <p className="text-muted-foreground mb-4">{userData.jobTitle || "No job title"}</p>
                       <div className="space-y-2 text-sm">
-                        <div className="flex items-center justify-center"><MapPin className="w-4 h-4 mr-2" />{userData.location || "No location"}</div>
-                        <div className="flex items-center justify-center"><Mail className="w-4 h-4 mr-2" />{userData.email}</div>
-                        <div className="flex items-center justify-center"><Phone className="w-4 h-4 mr-2" />{userData.phone || "No phone"}</div>
-                        <div className="flex items-center justify-center"><Globe className="w-4 h-4 mr-2" />{userData.website || "No website"}</div>
+                        <div className="flex items-center justify-center">
+                          <MapPin className="w-4 h-4 mr-2" />
+                          {userData.location || "No location"}
+                        </div>
+                        <div className="flex items-center justify-center">
+                          <Mail className="w-4 h-4 mr-2" />
+                          {userData.email}
+                        </div>
+                        <div className="flex items-center justify-center">
+                          <Phone className="w-4 h-4 mr-2" />
+                          {userData.phone || "No phone"}
+                        </div>
+                        <div className="flex items-center justify-center">
+                          <Globe className="w-4 h-4 mr-2" />
+                          {userData.website || "No website"}
+                        </div>
                       </div>
                       <div className="mt-6 space-y-2">
                         <Button className="w-full" onClick={() => setIsEditing(!isEditing)}>
@@ -150,21 +194,37 @@ export default function Profile() {
                           <Download className="w-4 h-4 mr-2" />
                           Download Resume
                         </Button>
-                        <Button variant="destructive" className="w-full" onClick={() => { logout(); router.push("/login"); }}>
+                        <Button
+                          variant="destructive"
+                          className="w-full"
+                          onClick={() => {
+                            logout();
+                            router.push("/login");
+                          }}
+                        >
                           Logout
                         </Button>
                       </div>
                     </CardContent>
                   </Card>
                 </motion.div>
+
                 <motion.div variants={cardVariants}>
                   <Card>
-                    <CardHeader><CardTitle>Skills</CardTitle></CardHeader>
+                    <CardHeader>
+                      <CardTitle>Skills</CardTitle>
+                    </CardHeader>
                     <CardContent>
                       <div className="flex flex-wrap gap-2">
-                        {userData.skills && userData.skills.length > 0
-                          ? userData.skills.map((skill: string) => <Badge key={skill} variant="secondary">{skill}</Badge>)
-                          : <span className="text-muted-foreground">No skills</span>}
+                        {userData.skills && userData.skills.length > 0 ? (
+                          userData.skills.map((skill: string) => (
+                            <Badge key={skill} variant="secondary">
+                              {skill}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-muted-foreground">No skills</span>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -190,7 +250,12 @@ export default function Profile() {
                         </CardHeader>
                         <CardContent>
                           {isEditing ? (
-                            <Textarea id="about" className="min-h-32" value={userData.about || ""} onChange={handleInputChange} />
+                            <Textarea
+                              id="about"
+                              className="min-h-32"
+                              value={userData.about || ""}
+                              onChange={handleInputChange}
+                            />
                           ) : (
                             <p className="text-muted-foreground">{userData.about || "No about info"}</p>
                           )}
@@ -203,19 +268,88 @@ export default function Profile() {
                   <TabsContent value="settings" className="space-y-6">
                     <motion.div variants={cardVariants}>
                       <Card>
-                        <CardHeader><CardTitle>Profile Settings</CardTitle></CardHeader>
+                        <CardHeader>
+                          <CardTitle>Profile Settings</CardTitle>
+                        </CardHeader>
                         <CardContent className="space-y-4">
                           <div className="grid grid-cols-2 gap-4">
-                            <div><Label htmlFor="firstName">First Name</Label><Input id="firstName" value={userData.firstName || ""} onChange={handleInputChange} disabled={!isEditing} /></div>
-                            <div><Label htmlFor="lastName">Last Name</Label><Input id="lastName" value={userData.lastName || ""} onChange={handleInputChange} disabled={!isEditing} /></div>
+                            <div>
+                              <Label htmlFor="firstName">First Name</Label>
+                              <Input
+                                id="firstName"
+                                value={userData.firstName || ""}
+                                onChange={handleInputChange}
+                                disabled={!isEditing}
+                              />
+                            </div>
+                            <div>
+                              <Label htmlFor="lastName">Last Name</Label>
+                              <Input
+                                id="lastName"
+                                value={userData.lastName || ""}
+                                onChange={handleInputChange}
+                                disabled={!isEditing}
+                              />
+                            </div>
                           </div>
-                          <div><Label htmlFor="email">Email</Label><Input id="email" type="email" value={userData.email || ""} disabled /></div>
-                          <div><Label htmlFor="phone">Phone</Label><Input id="phone" value={userData.phone || ""} onChange={handleInputChange} disabled={!isEditing} /></div>
-                          <div><Label htmlFor="location">Location</Label><Input id="location" value={userData.location || ""} onChange={handleInputChange} disabled={!isEditing} /></div>
-                          <div><Label htmlFor="jobTitle">Job Title</Label><Input id="jobTitle" value={userData.jobTitle || ""} onChange={handleInputChange} disabled={!isEditing} /></div>
-                          <div><Label htmlFor="experienceLevel">Experience Level</Label><Input id="experienceLevel" value={userData.experienceLevel || ""} onChange={handleInputChange} disabled={!isEditing} /></div>
-                          <div><Label htmlFor="website">Website</Label><Input id="website" value={userData.website || ""} onChange={handleInputChange} disabled={!isEditing} /></div>
-                          <div><Label htmlFor="about">About</Label><Textarea id="about" value={userData.about || ""} onChange={handleInputChange} disabled={!isEditing} /></div>
+                          <div>
+                            <Label htmlFor="email">Email</Label>
+                            <Input id="email" type="email" value={userData.email || ""} disabled />
+                          </div>
+                          <div>
+                            <Label htmlFor="phone">Phone</Label>
+                            <Input
+                              id="phone"
+                              value={userData.phone || ""}
+                              onChange={handleInputChange}
+                              disabled={!isEditing}
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="location">Location</Label>
+                            <Input
+                              id="location"
+                              value={userData.location || ""}
+                              onChange={handleInputChange}
+                              disabled={!isEditing}
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="jobTitle">Job Title</Label>
+                            <Input
+                              id="jobTitle"
+                              value={userData.jobTitle || ""}
+                              onChange={handleInputChange}
+                              disabled={!isEditing}
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="experienceLevel">Experience Level</Label>
+                            <Input
+                              id="experienceLevel"
+                              value={userData.experienceLevel || ""}
+                              onChange={handleInputChange}
+                              disabled={!isEditing}
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="website">Website</Label>
+                            <Input
+                              id="website"
+                              value={userData.website || ""}
+                              onChange={handleInputChange}
+                              disabled={!isEditing}
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="about">About</Label>
+                            <Textarea
+                              id="about"
+                              value={userData.about || ""}
+                              onChange={handleInputChange}
+                              disabled={!isEditing}
+                            />
+                          </div>
 
                           {isEditing && (
                             <Button onClick={handleSave} className="w-full" disabled={saveLoading}>

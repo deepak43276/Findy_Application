@@ -26,6 +26,9 @@ interface SavedJobsContextType {
 
 const SavedJobsContext = createContext<SavedJobsContextType | undefined>(undefined);
 
+// ✅ Use env variable for backend API (configurable per environment)
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081";
+
 export const SavedJobsProvider = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
   const [savedJobs, setSavedJobs] = useState<number[]>([]);
@@ -46,7 +49,7 @@ export const SavedJobsProvider = ({ children }: { children: React.ReactNode }) =
         setLoading(true);
 
         // 1️⃣ Fetch saved job IDs
-        const res = await fetch(`http://localhost:8081/api/saved-jobs/${user.id}`);
+        const res = await fetch(`${API_BASE_URL}/api/saved-jobs/${user.id}`);
         if (!res.ok) throw new Error("Failed to fetch saved jobs");
         const data = await res.json();
         const jobIds = Array.isArray(data) ? data.map((item: any) => item.jobId) : [];
@@ -56,7 +59,7 @@ export const SavedJobsProvider = ({ children }: { children: React.ReactNode }) =
         // 2️⃣ Fetch job details if there are saved jobs
         if (jobIds.length > 0) {
           const detailsRes = await fetch(
-            `http://localhost:8081/api/saved-jobs/jobs/by-ids?ids=${jobIds.join(",")}`
+            `${API_BASE_URL}/api/saved-jobs/jobs/by-ids?ids=${jobIds.join(",")}`
           );
           if (detailsRes.ok) {
             const details = await detailsRes.json();
@@ -92,7 +95,7 @@ export const SavedJobsProvider = ({ children }: { children: React.ReactNode }) =
     );
     if (!isSaved) {
       // If saving, fetch job detail and add
-      const resDetail = await fetch(`http://localhost:8081/api/jobs/${jobId}`);
+      const resDetail = await fetch(`${API_BASE_URL}/api/jobs/${jobId}`);
       if (resDetail.ok) {
         const jobDetail = await resDetail.json();
         setSavedJobDetails((prev) => [...prev, jobDetail]);
@@ -103,7 +106,7 @@ export const SavedJobsProvider = ({ children }: { children: React.ReactNode }) =
     }
 
     try {
-      const endpoint = `http://localhost:8081/api/saved-jobs?userId=${user.id}&jobId=${jobId}`;
+      const endpoint = `${API_BASE_URL}/api/saved-jobs?userId=${user.id}&jobId=${jobId}`;
       const method = isSaved ? "DELETE" : "POST";
 
       const res = await fetch(endpoint, { method });
@@ -117,7 +120,7 @@ export const SavedJobsProvider = ({ children }: { children: React.ReactNode }) =
         // Fetch updated job details list
         if (updatedJobIds.length > 0) {
           const detailsRes = await fetch(
-            `http://localhost:8081/api/saved-jobs/jobs/by-ids?ids=${updatedJobIds.join(",")}`
+            `${API_BASE_URL}/api/saved-jobs/jobs/by-ids?ids=${updatedJobIds.join(",")}`
           );
           if (detailsRes.ok) {
             const details = await detailsRes.json();
@@ -137,7 +140,7 @@ export const SavedJobsProvider = ({ children }: { children: React.ReactNode }) =
 
       // Rollback details
       if (isSaved) {
-        const resDetail = await fetch(`http://localhost:8081/api/jobs/${jobId}`);
+        const resDetail = await fetch(`${API_BASE_URL}/api/jobs/${jobId}`);
         if (resDetail.ok) {
           const jobDetail = await resDetail.json();
           setSavedJobDetails((prev) => [...prev, jobDetail]);

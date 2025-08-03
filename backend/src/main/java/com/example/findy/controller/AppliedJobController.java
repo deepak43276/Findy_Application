@@ -1,7 +1,7 @@
 package com.example.findy.controller;
 
 import com.example.findy.model.AppliedJob;
-import com.example.findy.model.dto.AppliedJobRequest; // ✅ Fixed package
+import com.example.findy.dto.AppliedJobRequest; // ✅ Fixed package
 import com.example.findy.repository.AppliedJobRepository;
 import com.example.findy.repository.JobRepository;
 

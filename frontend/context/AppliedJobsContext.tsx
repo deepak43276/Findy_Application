@@ -8,26 +8,31 @@ interface AppliedJobsContextType {
   appliedJobs: number[];
   applyJob: (jobId: number) => Promise<void>;
   refreshAppliedJobs: () => Promise<void>;
+  toggleApplyJob: (jobId: number) => void;
 }
 
 const AppliedJobsContext = createContext<AppliedJobsContextType>({
   appliedJobs: [],
   applyJob: async () => {},
   refreshAppliedJobs: async () => {},
+  toggleApplyJob: () => {},
 });
 
+// ✅ Use env variable for backend API (configurable per environment)
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081";
+
 export const AppliedJobsProvider = ({ children }: { children: React.ReactNode }) => {
-  const { user, token } = useAuth(); // ✅ Ensure AuthContext provides token
+  const { user, token } = useAuth();
   const [appliedJobs, setAppliedJobs] = useState<number[]>([]);
 
   // ✅ Fetch applied jobs from backend with Authorization
   const fetchAppliedJobs = async () => {
     if (!user || !token) return;
     try {
-      const res = await fetch(`http://localhost:8081/api/applied-jobs/${user.id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/applied-jobs/${user.id}`, {
         method: "GET",
         headers: {
-          Authorization: `Bearer ${token}`, // ✅ Send JWT
+          Authorization: `Bearer ${token}`,
         },
       });
 
@@ -50,17 +55,17 @@ export const AppliedJobsProvider = ({ children }: { children: React.ReactNode })
     }
   }, [user, token]);
 
-  // ✅ Apply for a job and persist to DB with JWT
+  // ✅ Apply for a job and persist to DB
   const applyJob = async (jobId: number) => {
     if (!user || !token) return;
     if (appliedJobs.includes(jobId)) return;
 
     try {
-      const res = await fetch("http://localhost:8081/api/applied-jobs", {
+      const res = await fetch(`${API_BASE_URL}/api/applied-jobs`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`, // ✅ Send JWT
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ userId: user.id, jobId }),
       });
@@ -68,9 +73,7 @@ export const AppliedJobsProvider = ({ children }: { children: React.ReactNode })
       const result = await res.json();
 
       if (res.ok) {
-        if (!appliedJobs.includes(jobId)) {
-          setAppliedJobs((prev) => [...prev, jobId]);
-        }
+        setAppliedJobs((prev) => [...prev, jobId]);
         console.log("Job applied successfully:", result);
       } else {
         console.warn(result.message || "Failed to apply job");
@@ -80,12 +83,20 @@ export const AppliedJobsProvider = ({ children }: { children: React.ReactNode })
     }
   };
 
+  // ✅ Toggle job application locally (UI only)
+  const toggleApplyJob = (jobId: number) => {
+    setAppliedJobs((prev) =>
+      prev.includes(jobId) ? prev.filter((id) => id !== jobId) : [...prev, jobId]
+    );
+  };
+
   return (
     <AppliedJobsContext.Provider
       value={{
         appliedJobs,
         applyJob,
         refreshAppliedJobs: fetchAppliedJobs,
+        toggleApplyJob,
       }}
     >
       {children}

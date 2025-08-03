@@ -1,9 +1,11 @@
+// @ts-nocheck
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
+import React from "react";
 
-export function withAdminProtection<P>(Component: React.ComponentType<P>) {
-  return function ProtectedComponent(props: P) {
+export function withAdminProtection(WrappedComponent) {
+  const ProtectedComponent = (props) => {
     const { isAdmin, user } = useAuth();
     const router = useRouter();
 
@@ -13,14 +15,15 @@ export function withAdminProtection<P>(Component: React.ComponentType<P>) {
       }
     }, [isAdmin, user, router]);
 
-    if (!user) {
-      // Optionally, show a loading spinner or null while checking auth
-      return null;
-    }
-    if (!isAdmin) {
-      // Optionally, show an error message
-      return null;
-    }
-    return <Component {...props} />;
+    if (!user) return null;
+    if (!isAdmin) return null;
+
+    return <WrappedComponent {...props} />;
   };
-} 
+
+  ProtectedComponent.displayName = `withAdminProtection(${
+    WrappedComponent.displayName || WrappedComponent.name || "Component"
+  })`;
+
+  return ProtectedComponent;
+}
