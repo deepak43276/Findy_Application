@@ -12,7 +12,7 @@ import { useRouter } from "next/router";
 import { useAuth } from "@/context/AuthContext";
 
 // ✅ Centralized API base URL
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8081";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081";
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);

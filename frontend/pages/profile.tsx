@@ -17,7 +17,7 @@ import { useRouter } from "next/navigation";
 import { motion, Variants, easeOut } from "framer-motion";
 
 // ✅ Centralized API Base URL
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8081";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081";
 
 export default function Profile() {
   const { toast } = useToast();
