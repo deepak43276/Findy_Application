@@ -97,10 +97,8 @@ export default function Login() {
         {/* Logo */}
         <div className="flex items-center justify-center mb-8">
           <Link href="/" className="flex items-center space-x-2">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-              <Briefcase className="w-6 h-6 text-primary-foreground" />
-            </div>
-            <span className="text-2xl font-bold gradient-text">JobHook</span>
+           
+            <span className="text-2xl font-bold gradient-text">Findy</span>
           </Link>
         </div>
 
